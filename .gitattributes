@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+app/build.gradle merge=ours
+.github/workflows/android.yml merge=ours
+app/src/main/java/org/levimc/launcher/util/PlayStoreValidator.java merge=ours
+app/src/main/java/org/levimc/launcher/core/minecraft/GamePackageManager.kt merge=ours
+app/src/main/java/org/levimc/launcher/core/minecraft/MinecraftLauncher.java merge=ours
