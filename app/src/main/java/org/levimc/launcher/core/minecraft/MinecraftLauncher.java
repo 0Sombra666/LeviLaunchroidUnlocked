@@ -1,339 +1,237 @@
-package org.levimc.launcher.core.minecraft
+package org.levimc.launcher.core.minecraft;
 
-import android.content.Context
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
-import android.content.res.AssetManager
-import android.os.Build
-import android.util.Log
-import org.levimc.launcher.core.versions.GameVersion
-import java.io.File
-import java.io.FileOutputStream
-import java.util.zip.ZipFile
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.widget.Toast;
 
-class GamePackageManager private constructor(private val context: Context, private val version: GameVersion?) {
+import org.levimc.launcher.core.mods.ModManager;
+import org.levimc.launcher.core.mods.ModNativeLoader;
+import org.levimc.launcher.core.versions.GameVersion;
+import org.levimc.launcher.settings.FeatureSettings;
+import org.levimc.launcher.ui.dialogs.LoadingDialog;
+import android.util.Log;
 
-    private val packageContext: Context
-    private val assetManager: AssetManager
-    private val nativeLibDir: String
-    private val applicationInfo: ApplicationInfo
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
 
-    private val knownPackages = arrayOf(
-        "com.mojang.minecraftpe",
-        "com.mojang.minecraftpe.beta",
-        "com.mojang.minecraftpe.preview"
-    )
+public class MinecraftLauncher {
+    private static final String TAG = "MinecraftLauncher";
+    private final Context context;
+    private GamePackageManager gameManager;
+    public static final String MC_PACKAGE_NAME = "com.mojang.minecraftpe";
+    private LoadingDialog loadingDialog;
 
-    private val requiredLibs = arrayOf(
-        "libc++_shared.so",
-        "libfmod.so",
-        "libMediaDecoders_Android.so",
-        "libmaesdk.so",
-        "libHttpClient.Android.so",
-        "libminecraftpe.so",
-    )
-
-    private val systemLoadedLibs = arrayOf(
-        "libPlayFabMultiplayer.so",
-        "libpairipcore.so",
-
-    )
-
-    init {
-        val packageName = detectGamePackage() ?: throw IllegalStateException("Minecraft not found")
-        packageContext = context.createPackageContext(
-            packageName,
-            Context.CONTEXT_IGNORE_SECURITY or Context.CONTEXT_INCLUDE_CODE
-        )
-        
-        if (version != null && !version.isInstalled) {
-            applicationInfo = MinecraftLauncher(context).createFakeApplicationInfo(version, MinecraftLauncher.MC_PACKAGE_NAME)
-            nativeLibDir = applicationInfo.nativeLibraryDir
-        } else {
-            applicationInfo = packageContext.applicationInfo
-            nativeLibDir = resolveNativeLibDir()
-        }
-        
-        extractLibraries()
-        assetManager = createAssetManager()
-        setupSecurityProvider()
+    public MinecraftLauncher(Context context) {
+        this.context = context;
     }
 
-    private fun detectGamePackage(): String? {
-        return knownPackages.firstOrNull { isPackageInstalled(it) }
+    public static String abiToSystemLibDir(String abi) {
+        if ("arm64-v8a".equals(abi)) return "arm64";
+        if ("armeabi-v7a".equals(abi)) return "arm";
+        return abi;
     }
 
-    private fun isPackageInstalled(packageName: String): Boolean {
-        return try {
-            context.packageManager.getPackageInfo(packageName, 0)
-            true
-        } catch (e: PackageManager.NameNotFoundException) {
-            false
-        }
-    }
+    public ApplicationInfo createFakeApplicationInfo(GameVersion version, String packageName) {
+        ApplicationInfo fakeInfo = new ApplicationInfo();
+        File apkFile = new File(version.versionDir, "base.apk.levi");
+        fakeInfo.sourceDir = apkFile.getAbsolutePath();
+        fakeInfo.publicSourceDir = fakeInfo.sourceDir;
+        String systemAbi = abiToSystemLibDir(Build.SUPPORTED_ABIS[0]);
+        File dstLibDir = new File(context.getDataDir(), "minecraft/" + version.directoryName + "/lib/" + systemAbi);
+        fakeInfo.nativeLibraryDir = dstLibDir.getAbsolutePath();
+        fakeInfo.packageName = packageName;
+        fakeInfo.dataDir = version.versionDir.getAbsolutePath();
 
-    private fun resolveNativeLibDir(): String {
-        val appInfo = packageContext.applicationInfo
-        return if (appInfo.splitPublicSourceDirs?.isNotEmpty() == true) {
-            val cacheLibDir = File(context.cacheDir, "lib/${getDeviceAbi()}")
-            cacheLibDir.mkdirs()
-            cacheLibDir.absolutePath
-        } else {
-            appInfo.nativeLibraryDir
-        }
-    }
-
-    private fun getDeviceAbi(): String {
-        return Build.SUPPORTED_64_BIT_ABIS.firstOrNull {
-            it.contains("arm64-v8a") || it.contains("x86_64")
-        } ?: Build.SUPPORTED_32_BIT_ABIS.firstOrNull {
-            it.contains("armeabi-v7a") || it.contains("x86")
-        } ?: (Build.SUPPORTED_ABIS.firstOrNull() ?: "armeabi-v7a")
-    }
-
-    private fun extractLibraries() {
-        val outputDir = File(nativeLibDir)
-        if (!outputDir.exists()) {
-            outputDir.mkdirs()
-        }
-
-        if (version != null && !version.isInstalled) {
-            val apkPaths = mutableListOf<String>()
-            val baseApk = File(applicationInfo.sourceDir)
-            if (baseApk.exists()) {
-                apkPaths.add(applicationInfo.sourceDir)
-            } else {
-                Log.w(TAG, "Base APK not found: ${applicationInfo.sourceDir}")
-            }
-            applicationInfo.splitSourceDirs?.forEach {
-                if (File(it).exists()) {
-                    apkPaths.add(it)
-                } else {
-                    Log.w(TAG, "Split APK not found: $it")
+        File splitsFolder = new File(version.versionDir, "splits");
+        if (splitsFolder.exists() && splitsFolder.isDirectory()) {
+            File[] splits = splitsFolder.listFiles();
+            if (splits != null) {
+                ArrayList<String> splitPathList = new ArrayList<>();
+                for (File f : splits) {
+                    if (f.isFile() && f.getName().endsWith(".apk.levi")) {
+                        splitPathList.add(f.getAbsolutePath());
+                    }
+                }
+                if (!splitPathList.isEmpty()) {
+                    fakeInfo.splitSourceDirs = splitPathList.toArray(new String[0]);
                 }
             }
-            apkPaths.forEach { extractFromApk(it, outputDir, getDeviceAbi()) }
-            if (requiredLibs.any { !File(outputDir, it).exists() }) {
-                Log.w(TAG, "Primary ABI ${getDeviceAbi()} libraries missing, trying fallback ABIs")
-                val fallbackAbis = listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
-                fallbackAbis.filter { it != getDeviceAbi() }.forEach { abi ->
-                    apkPaths.forEach { extractFromApk(it, outputDir, abi) }
-                }
-            }
-        } else {
-            val appInfo = packageContext.applicationInfo
-            if (File(appInfo.nativeLibraryDir).exists()) {
-                copyFromNativeDir(appInfo.nativeLibraryDir, outputDir)
-            }
-            val apkPaths = mutableListOf<String>()
-            appInfo.sourceDir?.let { apkPaths.add(it) }
-            appInfo.splitPublicSourceDirs?.let { apkPaths.addAll(it) }
-            apkPaths.forEach { extractFromApk(it, outputDir, getDeviceAbi()) }
         }
-        verifyLibraries(outputDir)
+        return fakeInfo;
     }
 
-    private fun copyFromNativeDir(sourceDir: String, destDir: File) {
-        val source = File(sourceDir)
-        if (!source.exists()) {
-            Log.w(TAG, "Source native library directory does not exist: $sourceDir")
-            return
-        }
-
-        requiredLibs.forEach { lib ->
-            val srcFile = File(source, lib)
-            val dstFile = File(destDir, lib)
-            if (srcFile.exists() && srcFile.length() > 0) {
-                try {
-                    srcFile.copyTo(dstFile, overwrite = true)
-                    dstFile.setReadable(true)
-                    dstFile.setExecutable(true)
-                    logFileOperation("Copied", lib)
-                } catch (e: Exception) {
-                    logFileOperation("Failed to copy", lib, e = e)
-                }
-            } else {
-                Log.w(TAG, "Library $lib not found in $sourceDir")
-            }
-        }
-    }
-
-    private fun extractFromApk(apkPath: String, outputDir: File, abi: String) {
-        val apkFile = File(apkPath)
-        if (!apkFile.exists()) {
-            Log.w(TAG, "APK file does not exist: $apkPath")
-            return
-        }
-        if (!apkPath.contains("arm") && !apkPath.contains("x86") && !apkPath.contains("base.apk")) {
-            return
-        }
+    public void launch(Intent sourceIntent, GameVersion version) {
+        Activity activity = (Activity) context;
 
         try {
-            ZipFile(apkPath).use { zip ->
-                val abiPath = "lib/$abi"
-                requiredLibs.forEach { lib ->
-                    val entry = zip.getEntry("$abiPath/$lib")
-                    if (entry == null) {
-                        return@forEach
-                    }
-                    val output = File(outputDir, lib)
-                    if (output.exists() && output.length() > 0) {
-                        return@forEach
-                    }
-                    zip.getInputStream(entry).use { input ->
-                        FileOutputStream(output).use { out ->
-                            input.copyTo(out)
-                        }
-                    }
-                    output.setReadable(true)
-                    output.setExecutable(true)
-                }
+            if (version == null) {
+                Log.e(TAG, "No version selected");
+                showLaunchErrorOnUi("No version selected");
+                return;
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to extract libraries from $apkPath: ${e.message}")
+
+            if (version.needsRepair) {
+                activity.runOnUiThread(() ->
+                        org.levimc.launcher.core.versions.VersionManager.attemptRepairLibs(activity, version)
+                );
+                return;
+            }
+            activity.runOnUiThread(() -> {
+                dismissLoading();
+                loadingDialog = new LoadingDialog(activity);
+                loadingDialog.show();
+            });
+            gameManager = GamePackageManager.Companion.getInstance(context.getApplicationContext(), version);
+            fillIntentWithMcPath(sourceIntent, version);
+            launchMinecraftActivity(sourceIntent, version, false);
+        } catch (Exception e) {
+            Log.e(TAG, "Launch failed: " + e.getMessage(), e);
+            dismissLoading();
+            showLaunchErrorOnUi("Launch failed: " + e.getMessage());
         }
     }
 
-    private fun verifyLibraries(dir: File) {
-        val missing = requiredLibs.filterNot {
-            File(dir, it).let { f -> f.exists() && f.length() > 0 }
-        }
-        if (missing.isNotEmpty()) {
-            Log.w(TAG, "Missing libraries in $dir: ${missing.joinToString()}")
+    private void fillIntentWithMcPath(Intent sourceIntent, GameVersion version) {
+        if (FeatureSettings.getInstance().isVersionIsolationEnabled()) {
+            sourceIntent.putExtra("MC_PATH", version.versionDir.getAbsolutePath());
+            sourceIntent.putExtra("IS_INSTALLED", version.isInstalled);
         } else {
-            Log.i(TAG, "All libraries verified in $dir")
+            sourceIntent.putExtra("MC_PATH", "");
+            sourceIntent.putExtra("IS_INSTALLED", false);
         }
     }
 
-    private fun logFileOperation(action: String, lib: String, extra: String? = null, e: Exception? = null) {
-        val message = buildString {
-            append("$action $lib")
-            if (extra != null) append(" $extra")
-            if (e != null) append(": ${e.message}")
-        }
-        if (e != null) Log.w(TAG, message) else Log.d(TAG, message)
-    }
+    private void launchMinecraftActivity(Intent sourceIntent, GameVersion version, boolean modsEnabled) {
+        Activity activity = (Activity) context;
 
-    private fun createAssetManager(): AssetManager {
-        val assets = AssetManager::class.java.newInstance()
-        val addAssetPathMethod = AssetManager::class.java.getMethod("addAssetPath", String::class.java)
-
-        val paths = mutableListOf<String>()
-        
-        if (version != null && !version.isInstalled) {
-            val baseApk = File(applicationInfo.sourceDir)
-            if (baseApk.exists()) {
-                paths.add(applicationInfo.sourceDir)
-            } else {
-                Log.w(TAG, "Base APK for assets not found: ${applicationInfo.sourceDir}")
-            }
-            applicationInfo.splitSourceDirs?.forEach {
-                if (File(it).exists()) {
-                    paths.add(it)
-                    Log.d(TAG, "Adding split APK for assets: $it")
-                } else {
-                    Log.w(TAG, "Split APK for assets not found: $it")
-                }
-            }
-        } else {
-            paths.add(packageContext.packageResourcePath)
-            val splitPath = packageContext.packageResourcePath.replace("base.apk", "split_install_pack.apk")
-            if (File(splitPath).exists()) paths.add(splitPath)
-        }
-        
-        paths.add(context.packageResourcePath)
-
-        paths.forEach { path ->
+        new Thread(() -> {
             try {
-                addAssetPathMethod.invoke(assets, path)
-                Log.d(TAG, "Added asset path: $path")
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to add asset path $path: ${e.message}")
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                    sourceIntent.putExtra("DISABLE_SPLASH_SCREEN", true);
+                }
+
+                sourceIntent.setClass(context, MinecraftActivity.class);
+                ApplicationInfo mcInfo = version.isInstalled ?
+                        gameManager.getPackageContext().getApplicationInfo() :
+                        createFakeApplicationInfo(version, MC_PACKAGE_NAME);
+                sourceIntent.putExtra("MC_SRC", mcInfo.sourceDir);
+                if (mcInfo.splitSourceDirs != null) {
+                    sourceIntent.putExtra("MC_SPLIT_SRC", new ArrayList<>(Arrays.asList(mcInfo.splitSourceDirs)));
+                }
+                sourceIntent.putExtra("MODS_ENABLED", modsEnabled);
+                sourceIntent.putExtra("MINECRAFT_VERSION", version.versionCode);
+                sourceIntent.putExtra("MINECRAFT_VERSION_DIR", version.directoryName);
+
+                if (shouldLoadHttpClient(version)) {
+                    gameManager.loadLibrary("c++_shared");
+                    if (gameManager.loadLibrary("HttpClient.Android")) {
+                        Log.d(TAG, "Loaded Minecraft's libHttpClient.Android.so");
+                    } else {
+                        Log.w(TAG, "HttpClient.Android not found in extracted libs");
+                    }
+                }
+
+                if (shouldLoadMaesdk(version)) {
+                    java.util.Set<String> excludeLibs = new java.util.HashSet<>();
+                    if (shouldLoadHttpClient(version)) {
+                        excludeLibs.add("c++_shared");
+                        excludeLibs.add("HttpClient.Android");
+                    }
+                    if (!shouldLoadPlayFab(version)) {
+                        excludeLibs.add("PlayFabMultiplayer");
+                    }
+                    gameManager.loadAllLibraries(excludeLibs);
+                } else {
+                    if (!shouldLoadHttpClient(version)) {
+                        gameManager.loadLibrary("c++_shared");
+                    }
+                    gameManager.loadLibrary("fmod");
+                    gameManager.loadLibrary("MediaDecoders_Android");
+                    gameManager.loadLibrary("minecraftpe");
+                }
+                ModNativeLoader.loadEnabledSoMods(ModManager.getInstance(), context.getCacheDir());
+
+                activity.runOnUiThread(() -> {
+                    dismissLoading();
+                    activity.startActivity(sourceIntent);
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to launch Minecraft activity: " + e.getMessage(), e);
+                activity.runOnUiThread(() -> {
+                    dismissLoading();
+                    Toast.makeText(context, "Failed to launch: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
             }
-        }
-        return assets
+        }).start();
     }
 
-    private fun setupSecurityProvider() {
-        Log.d(TAG, "Setting up security provider...")
+    private boolean shouldLoadMaesdk(GameVersion version) {
+        if (version == null || version.versionCode == null) {
+            return false;
+        }
+        String versionCode = version.versionCode;
+        String targetVersion = versionCode.contains("beta") ? "1.21.110.22" : "1.21.110";
+        return isVersionAtLeast(versionCode, targetVersion);
+    }
+
+    private boolean shouldLoadHttpClient(GameVersion version) {
+        if (version == null || version.versionCode == null) {
+            return false;
+        }
+        String versionCode = version.versionCode;
+        String targetVersion = versionCode.contains("beta") ? "1.21.130.20" : "1.21.130";
+        return isVersionAtLeast(versionCode, targetVersion);
+    }
+
+    private boolean shouldLoadPlayFab(GameVersion version) {
+        if (version == null || version.versionCode == null) {
+            return false;
+        }
+        String versionCode = version.versionCode;
+        String targetVersion = versionCode.contains("beta") ? "1.21.130.20" : "1.21.130";
+        return isVersionAtLeast(versionCode, targetVersion);
+    }
+
+    private boolean isVersionAtLeast(String currentVersion, String targetVersion) {
         try {
-            java.security.Security.insertProviderAt(org.conscrypt.Conscrypt.newProvider(), 1)
-        } catch (e: Exception) {
-            Log.w(TAG, "Conscrypt init failed: ${e.message}")
+            String[] current = currentVersion.replaceAll("[^0-9.]", "").split("\\.");
+            String[] target = targetVersion.split("\\.");
+
+            int maxLength = Math.max(current.length, target.length);
+
+            for (int i = 0; i < maxLength; i++) {
+                int currentPart = i < current.length ? Integer.parseInt(current[i]) : 0;
+                int targetPart = i < target.length ? Integer.parseInt(target[i]) : 0;
+
+                if (currentPart > targetPart) return true;
+                if (currentPart < targetPart) return false;
+            }
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 
-    fun loadLibrary(name: String): Boolean {
-        val libFile = File(nativeLibDir, if (name.startsWith("lib")) name else "lib$name.so")
-        val libName = libFile.name
-        return if (systemLoadedLibs.contains(libName)) {
-            try {
-                System.loadLibrary(name.removePrefix("lib").removeSuffix(".so"))
-                Log.d(TAG, "Loaded $name as system library")
-                true
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to load system library $name: ${e.message}")
-                false
+    private void dismissLoading() {
+        try {
+            if (loadingDialog != null && loadingDialog.isShowing()) {
+                loadingDialog.dismiss();
             }
-        } else {
-            try {
-                if (libFile.exists() && libFile.length() > 0) {
-                    System.load(libFile.absolutePath)
-                    Log.d(TAG, "Loaded $name from $nativeLibDir")
-                    true
-                } else {
-                    Log.w(TAG, "Library $name not found in $nativeLibDir, skipping")
-                    false
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to load $name: ${e.message}")
-                false
-            }
+        } catch (Exception ignored) {
+        } finally {
+            loadingDialog = null;
         }
     }
 
-    fun loadAllLibraries(excludeLibs: Set<String> = emptySet()) {
-        val allLibs = requiredLibs + systemLoadedLibs
-        allLibs.forEach { lib ->
-            val libName = lib.removePrefix("lib").removeSuffix(".so")
-            if (excludeLibs.contains(libName) || excludeLibs.contains(lib)) {
-                Log.d(TAG, "Skipping excluded library: $libName")
-                return@forEach
-            }
-            if (!loadLibrary(libName)) {
-                Log.e(TAG, "Failed to load required library $libName")
-            }
-        }
-    }
-
-    fun getAssets(): AssetManager = assetManager
-
-    fun getPackageContext(): Context = packageContext
-
-    fun getApplicationInfo(): ApplicationInfo = applicationInfo
-
-    fun getVersionName(): String? {
-        return try {
-            context.packageManager.getPackageInfo(packageContext.packageName, 0).versionName
-        } catch (e: Exception) {
-            version?.versionCode
-        }
-    }
-
-    companion object {
-        private const val TAG = "GamePackageManager"
-
-        @Volatile
-        private var instance: GamePackageManager? = null
-
-        @JvmStatic
-        fun getInstance(context: Context, version: GameVersion? = null): GamePackageManager {
-            return synchronized(this) {
-                instance = null // Reset instance to ensure fresh initialization
-                instance ?: GamePackageManager(context.applicationContext, version).also { instance = it }
-            }
-        }
-
-        fun isInitialized() = instance != null
+    private void showLaunchErrorOnUi(String message) {
+        Activity activity = (Activity) context;
+        activity.runOnUiThread(() -> Toast.makeText(
+                activity, "Failed to launch Minecraft: " + message, Toast.LENGTH_LONG).show()
+        );
     }
 }
