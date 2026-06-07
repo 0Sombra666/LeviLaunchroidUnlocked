@@ -2,7 +2,7 @@
 
 ![LeviLauncher Logo](https://avatars.githubusercontent.com/u/78095377?s=200&v=4)
 
-# LeviLauncher
+# LeviLauncher Unlocked
 
 ![Banner](https://camo.githubusercontent.com/bd7bd77cb422a267057d9863095b239b096d4f46dc831a37b45867a9acfad697/68747470733a2f2f63617073756c652d72656e6465722e76657263656c2e6170702f6170693f747970653d576176696e6726636f6c6f723d74696d654772616469656e74266865696768743d33303026616e696d6174696f6e3d66616465496e2673656374696f6e3d68656164657226746578743d4c6576694d4326666f6e7453697a653d313230)
 
@@ -12,7 +12,7 @@
 [![License: Apache 2.0](https://img.shields.io/github/license/LiteLDev/LeviLaunchroid)](https://github.com/LiteLDev/LeviLaunchroid/blob/main/LICENSE)
 [![Issues](https://img.shields.io/github/issues/LiteLDev/LeviLaunchroid?style=flat-square&color=red)](https://github.com/LiteLDev/LeviLaunchroid/issues)
 [![Stars](https://img.shields.io/github/stars/LiteLDev/LeviLaunchroid?style=flat-square&color=yellow)](https://github.com/LiteLDev/LeviLaunchroid)
-[![Android](https://img.shields.io/badge/Android-9.0%2B-green?style=flat-square&logo=android)](https://www.android.com/)
+[![Android](https://img.shields.io/badge/Android-7.0%2B-green?style=flat-square&logo=android)](https://www.android.com/)
 
 </div>
 
@@ -22,7 +22,7 @@
 
 LeviLauncher is a lightweight, open-source Android launcher specifically designed for legitimate players of Minecraft: Bedrock Edition (MCBE). It provides a flexible and user-friendly alternative to the standard Google Play installation, allowing you to manage multiple game versions and extend functionality with external modules.
 
-LeviLauncher enables you to import your official Minecraft APK and run it directly without requiring system installation. The launcher supports loading external native modules to enhance gameplay, provides robust multi-version management with complete isolation between installations, and includes built-in tools for managing resource packs and worlds. Whether you're looking to organize different game versions, test modifications, or optimize your gaming experience, LeviLauncher offers the flexibility you need.
+LeviLauncher enables you to import your official Minecraft APK and run it directly without requiring system installation. The launcher supports loading external native modules to enhance gameplay, provides robust multi-version management with complete isolation between installations, and includes built-in tools for managing resource packs and worlds. Whether you're looking to organize different game versions, test modifications, or optimize your gaming experience, LeviLauncher offers the flexibility you need. This project is for educational purposes.
 
 ### Key Features
 
@@ -38,13 +38,13 @@ LeviLauncher enables you to import your official Minecraft APK and run it direct
 
 Before installing LeviLauncher, ensure your device meets the following minimum specifications:
 
-- **Operating System:** Android 9.0 (API 28) or higher
+- **Operating System:** Android 8.0 (API 26) or higher
 - **Device Architecture:** ARM64 (v8a)
 - **RAM:** Minimum 1 GB available RAM (2 GB or more recommended)
 - **Storage:** At least 2 GB of available storage for Minecraft and game data
 - **License Requirement:** You must own a licensed copy of Minecraft Bedrock Edition purchased from Google Play
 
-> **Note:** For optimal performance and stability, we recommend Android 9.0 or higher with at least 3 GB of available RAM and 5 GB of free storage.
+> **Note:** For optimal performance and stability, we recommend Android 8.0 or higher with at least 3 GB of available RAM and 5 GB of free storage.
 
 ---
 
@@ -63,8 +63,6 @@ Before proceeding with LeviLauncher installation, ensure that you have the offic
 5. Grant the necessary permissions when prompted during installation
 6. Once installed, open LeviLauncher from your application drawer
 
-> **Important:** LeviLauncher requires a legitimate, licensed copy of Minecraft Bedrock Edition. Do not use this launcher with pirated or unauthorized versions of the game. Ensure your Minecraft license is valid and properly linked to your Microsoft account.
-
 ---
 
 ## Development Setup
@@ -76,14 +74,14 @@ If you want to build LeviLauncher from source or contribute to development, foll
 - Git installed on your system
 - Android Studio (latest version recommended)
 - Java Development Kit (JDK) 21 or higher
-- Android SDK with API level 28 or higher
+- Android SDK with API level 24 or higher
 
 ### Setup Instructions
 
 1. Clone the LeviLauncher repository:
 
    ```bash
-   git clone https://github.com/LiteLDev/LeviLaunchroid.git
+   git clone https://github.com/0Sombra666/LeviLaunchroidUnlocked
    ```
 
 2. Open the project directory in Android Studio
@@ -92,7 +90,7 @@ If you want to build LeviLauncher from source or contribute to development, foll
 
 4. Wait for Gradle to complete the initial sync process
 
-5. Connect your Android device or start an emulator (API 28+)
+5. Connect your Android device or start an emulator (API 24+)
 
 6. Click the "Run" button in Android Studio to build and deploy to your device
 
@@ -168,6 +166,7 @@ LeviLauncher would not be possible without the contributions and support of many
 
 - **LeviMC Organization** – For maintaining the LeviLauncher project and providing infrastructure support
 - **Android Community** – For excellent documentation, libraries, and tools that made this launcher possible
+- **UnpairedCore Library** – For providing essential utilities and components used in LeviLauncher. See [Kitsuri Studios - UnpairCore](https://github.com/Kitsuri-Studios/unpaircore)
 - **Open Source Community** – For all the libraries, frameworks, and tools that power this project
 - **Contributors** – A heartfelt thank you to all [contributors](https://github.com/LiteLDev/LeviLaunchroid/graphs/contributors) who have continuously improved and maintained LeviLauncher through their time and expertise
 
@@ -191,8 +190,7 @@ LeviLauncher would not be possible without the contributions and support of many
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Issues](https://img.shields.io/github/issues/LiteLDev/LeviLaunchroid?style=flat-square&color=red)](https://github.com/LiteLDev/LeviLaunchroid/issues)
 [![Stars](https://img.shields.io/github/stars/LiteLDev/LeviLaunchroid?style=flat-square&color=yellow)](https://github.com/LiteLDev/LeviLaunchroid)
-[![Android](https://img.shields.io/badge/Android-9.0%2B-green?style=flat-square&logo=android)](https://www.android.com/)
+[![Android](https://img.shields.io/badge/Android-7.0%2B-green?style=flat-square&logo=android)](https://www.android.com/)
 
 **Made with ❤️ by the LeviMC Community**
-
 </div>
