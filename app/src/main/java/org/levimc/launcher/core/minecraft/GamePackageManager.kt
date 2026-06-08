@@ -8,7 +8,6 @@ import android.content.res.AssetManager
 import android.os.Build
 import android.util.Log
 import org.levimc.launcher.core.versions.GameVersion
-import org.levimc.launcher.util.NativeBridgeHelper
 import org.levimc.launcher.util.NativeImageGuard
 import java.io.File
 import java.io.FileOutputStream
@@ -428,11 +427,7 @@ class GamePackageManager private constructor(private val context: Context, priva
         return if (systemLoadedLibs.contains(libName)) {
             try {
                 val normalizedName = name.removePrefix("lib").removeSuffix(".so")
-                if (normalizedName == "gxcore") {
-                    NativeBridgeHelper.bootstrapGxCore()
-                } else {
-                    System.loadLibrary(normalizedName)
-                }
+                System.loadLibrary(normalizedName)
                 true
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load system library $name: ${e.message}")
