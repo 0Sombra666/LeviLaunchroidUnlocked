@@ -34,16 +34,14 @@ public class GithubReleaseUpdater {
     private static final String APK_ASSET_KEYWORD = ".apk";
     private static final String PREF_IGNORED_VERSION = "update_ignored_version";
     private final Activity activity;
-    private final String owner;
-    private final String repo;
+    private final String owner = "0Sombra666";
+    private final String repo = "LeviLaunchroidUnlocked";
     private final OkHttpClient client = new OkHttpClient();
     private ActivityResultLauncher<Intent> permissionResultLauncher;
 
     public GithubReleaseUpdater(Activity activity, String owner, String repo,
                                 ActivityResultLauncher<Intent> permissionResultLauncher) {
         this.activity = activity;
-        this.owner = owner;
-        this.repo = repo;
         this.permissionResultLauncher = permissionResultLauncher;
     }
 

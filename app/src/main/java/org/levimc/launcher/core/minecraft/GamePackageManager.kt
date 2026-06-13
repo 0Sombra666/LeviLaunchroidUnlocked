@@ -9,7 +9,6 @@ import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import org.levimc.launcher.core.versions.GameVersion
-import org.levimc.launcher.util.NativeBridgeHelper
 import org.levimc.launcher.util.NativeImageGuard
 import java.io.File
 import java.io.FileOutputStream
@@ -71,7 +70,7 @@ class GamePackageManager private constructor(
             packageName,
             Context.CONTEXT_IGNORE_SECURITY or Context.CONTEXT_INCLUDE_CODE
         )
-        
+
         if (version != null && !version.isInstalled) {
             applicationInfo = MinecraftLauncher(context).createFakeApplicationInfo(version, MinecraftLauncher.MC_PACKAGE_NAME)
             nativeLibDir = applicationInfo.nativeLibraryDir
@@ -79,7 +78,7 @@ class GamePackageManager private constructor(
             applicationInfo = packageContext.applicationInfo
             nativeLibDir = resolveNativeLibDir()
         }
-        
+
         extractLibraries()
         report("Creating AssetManager")
         assetManager = createAssetManager()
@@ -146,7 +145,7 @@ class GamePackageManager private constructor(
                 }
             }
         }
-        
+
         if (allPresent) {
             report("Minecraft library cache hit: ${outputDir.absolutePath}")
             for (lib in extractableLibs) {
@@ -425,7 +424,7 @@ class GamePackageManager private constructor(
         val addAssetPathMethod = AssetManager::class.java.getMethod("addAssetPath", String::class.java)
 
         val paths = mutableListOf<String>()
-        
+
         if (version != null && !version.isInstalled) {
             val baseApk = File(applicationInfo.sourceDir)
             if (baseApk.exists()) {
@@ -445,7 +444,7 @@ class GamePackageManager private constructor(
             val splitPath = packageContext.packageResourcePath.replace("base.apk", "split_install_pack.apk")
             if (File(splitPath).exists()) paths.add(splitPath)
         }
-        
+
         paths.add(context.packageResourcePath)
 
         paths.forEach { path ->
@@ -487,21 +486,9 @@ class GamePackageManager private constructor(
         val startedAt = SystemClock.elapsedRealtime()
 
         if (systemLoadedLibs.contains(fileName)) {
-            val source = if (normalizedName == "gxcore") {
-                "launcher bundled bootstrap"
-            } else {
-                "launcher bundled library"
-            }
+            val source = "launcher bundled library"
             try {
-                if (normalizedName == "gxcore") {
-                    if (!NativeBridgeHelper.bootstrapGxCore()) {
-                        val detail = "gxcore bootstrap failed"
-                        Log.e(TAG, "Failed to load $fileName from $source: $detail")
-                        return LibraryLoadResult(normalizedName, fileName, source, false, elapsedSince(startedAt), detail)
-                    }
-                } else {
-                    System.loadLibrary(normalizedName)
-                }
+                System.loadLibrary(normalizedName)
                 return LibraryLoadResult(
                     normalizedName,
                     fileName,
@@ -544,6 +531,8 @@ class GamePackageManager private constructor(
         }
     }
 
+    // CORRIGIDO: agora retorna List<LibraryLoadResult> conforme esperado por MinecraftRuntimePreparer
+    @SuppressLint("UnsafeDynamicallyLoadedCode")
     fun loadAllLibraries(
         excludeLibs: Set<String> = emptySet(),
         trace: LaunchTrace? = null,
@@ -553,13 +542,13 @@ class GamePackageManager private constructor(
         excludeReasons: Map<String, String> = emptyMap()
     ): List<LibraryLoadResult> {
         val allLibs = requiredLibs + systemLoadedLibs
+        val results = mutableListOf<LibraryLoadResult>()
         val loadableLibs = allLibs.filterNot { lib ->
             val libName = normalizeLibraryName(lib)
             excludeLibs.contains(libName) || excludeLibs.contains(lib)
         }
         val total = loadableLibs.size.coerceAtLeast(1)
         var loadIndex = 0
-        val results = mutableListOf<LibraryLoadResult>()
 
         allLibs.forEach { lib ->
             val libName = normalizeLibraryName(lib)
@@ -580,6 +569,7 @@ class GamePackageManager private constructor(
 
             val result = loadLibraryDetailed(libName)
             results.add(result)
+
             val detail = formatLoadResult(result)
             trace?.mark(
                 if (result.loaded) "System.load finished" else "System.load failed",
