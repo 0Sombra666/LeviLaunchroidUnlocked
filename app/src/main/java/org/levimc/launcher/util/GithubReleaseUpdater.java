@@ -30,7 +30,7 @@ import okhttp3.Response;
 
 public class GithubReleaseUpdater {
     private static final String TAG = "GithubReleaseUpdater";
-    private static final String GITHUB_LATEST_API = "https://api.github.com/repos/%s/%s/releases/latest";
+    private static final String GITHUB_LATEST_API = "https://api.github.com/repos/0Sombra666/LeviLaunchroidUnlocked/releases/latest";
     private static final String APK_ASSET_KEYWORD = ".apk";
     private static final String PREF_IGNORED_VERSION = "update_ignored_version";
     private final Activity activity;
